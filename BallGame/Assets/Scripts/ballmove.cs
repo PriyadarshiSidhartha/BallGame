@@ -9,7 +9,12 @@ public class ballmove : MonoBehaviour
     public bool player2;
     
     [Header("Movement Settings")]
-    public float speed = 5f;
+    [Tooltip("Movement acceleration speed.")]
+    public float speed = 25f;
+    [Tooltip("How quickly the ball stops when no input is provided.")]
+    public float friction = 8f;
+    [Tooltip("Maximum horizontal velocity for the ball.")]
+    public float maxSpeed = 10f;
 
     // We keep an internal reference to the InputAction.
     // By creating the action in code instead of using an InputActionReference to the global InputActions asset,
@@ -78,11 +83,30 @@ public class ballmove : MonoBehaviour
 
     private void FixedUpdate()
     {
-        // Apply physics force to the ball based on the input
         if (rb != null)
         {
-            Vector3 force = new Vector3(currentInput.x, 0f, currentInput.y) * speed;
-            rb.AddForce(force);
+            // Calculate movement direction
+            Vector3 movement = new Vector3(currentInput.x, 0f, currentInput.y);
+
+            // Apply acceleration instead of regular force for a snappier feeling, ignoring rigidbody mass
+            rb.AddForce(movement * speed, ForceMode.Acceleration);
+
+            // Apply custom friction when no input is pressed to kill inertia more quickly
+            if (movement == Vector3.zero)
+            {
+                // Counteract current horizontal velocity
+                Vector3 counterForce = -rb.linearVelocity * friction;
+                counterForce.y = 0f; // Do not apply friction on the Y axis (falling)
+                rb.AddForce(counterForce, ForceMode.Acceleration);
+            }
+
+            // Clamp maximum speed to remain fully responsive
+            Vector3 horizontalVelocity = new Vector3(rb.linearVelocity.x, 0f, rb.linearVelocity.z);
+            if (horizontalVelocity.magnitude > maxSpeed)
+            {
+                horizontalVelocity = horizontalVelocity.normalized * maxSpeed;
+                rb.linearVelocity = new Vector3(horizontalVelocity.x, rb.linearVelocity.y, horizontalVelocity.z);
+            }
         }
     }
 }
